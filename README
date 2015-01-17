@@ -1,0 +1,97 @@
+James Malcolm (gtg519b, 901.42.0501)
+
+Team
+
+  I worked solo, except for sharing test cases with Delphine Nain and
+  Gallagher Pryor.
+
+
+Platform
+
+  bash$ uname -a
+  Linux darla 2.4.21-32.0.1.EL #1 Tue May 17 18:01:37 EDT 2005 i686 i686 i386
+  GNU/Linux
+
+
+Compile and Run
+
+  bash$ make -j3    # makes all test cases
+  bash$ cd tests
+  bash$ ./basic8    # to run this test case
+  bash$ ./test_about_to_modify5
+
+  Note, some test cases print warnings or error messages.  See Error Handling.
+
+
+Thoughts
+
+  I love functional languages, and have always been frustrated with what
+  seemed to me to be the limited scoping of C compared to that of ML or Lisp.
+  I love helper functions that can reference variables in surrounding scopes.
+  I was ecstatic when I found out that my C compiler has had support for
+  nested functions, since at least gcc 2.96.  This simplified my list
+  processing code greatly.
+
+  I ran into a problem when I would use lseek(2) to rewind the log for
+  replaying it, i.e. when I SEEK_SET to zero and then tried to read(2), it
+  would fail with "Bad file descriptor."  I got around this by simply closing
+  the log and reopening it.  Was I misusing lseek(2)?
+
+  I want to start using some sort of RCS naturally within emacs.  Any tips?
+
+  Is there a better way to do my Makefile and automated testing, especially
+  since I'm using a subdirectory?
+
+
+Report:  How you use logfiles to accomplish persistency plus transaction
+semantics. How many files do you have? What goes in them?
+
+  Each RVM directory has a log file for permanence where transactions are
+  streamed.  fsync(2) is called to flush this log to disk before returning
+  from rvm_commit_trans() providing transactional semantics.
+
+  Each segment has a file for backing store.  rvm_truncate_log() reads from
+  the log and modifies segments using fsync(2) to ensure persistence.
+
+
+Report:  How do the files get cleaned up, so that they do not expand
+indefinitely?
+
+  Per the project description, rvm_truncate_log() propagates all modifications
+  from the log to segments and truncates the log to zero length.  There is no
+  pruning of the log in the background.
+
+
+Optimizations
+
+  The intra-transactional optimization is implemented.  In this optimization,
+  when rvm_about_to_modify() "calls that specifying identical, overlapping, or
+  adjacent memory addresses are issued within a single transaction" (p 153 of
+  RVM paper), these address ranges are coalesced, which implicitly discards
+  identical range specifications.
+
+  The inter-transaction optimization was not implemented due to the lack of
+  no-flush/lazy transactions.
+
+
+Error Handling
+
+  While it is generally bad form for libraries to print error messages, as
+  noted on the class newsgroups, I still left such messages in the code.  I
+  justified this in my own mind for several reasons.  First, this was a proof
+  of concept library and so the emphasis is on the semantics of recoverable
+  memory, not input error states that greatly increase complexity.  Second,
+  the given library API did not mention error codes; in some cases it only
+  specified what was illegal behavior, not specifically how to handle it.  And
+  lastly, such messages could be easily removed for a production version.
+
+  Errors resulting from invalid user input resulted in the library terminating
+  via errx(3), except in cases where the project description dictates
+  otherwise.  For example, attempting to map in the same segment multiple
+  times results in the library terminating with an error message while
+  attempting to use a segment in multiple transactions results in a return
+  value of (trans_t)-1 as described in the project writeup.  Underlying this
+  design decision is the fundamental assumption that the user is obeying the
+  library semantics, e.g. the user should not be un-mapping a segment involved
+  in an outstanding transaction.  The tests cases that we created attempted to
+  primarily test the recoverable memory semantics.

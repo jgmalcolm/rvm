@@ -1,0 +1,12 @@
+Fri Nov 25 00:50:58 EST 2005
+
+  Forgot to malloc for mod_t structure before starting to use pointer
+
+
+Tue Dec  6 00:44:16 EST 2005
+
+  When replaying the log on a segment just mapped in, it seeks past log
+  entries not pertaining to this segment.  I was accidentally seeking that
+  distance plus the size of an offset which is already accounted by the
+  replay_log_on_segment() function, so each time I was inadvertently adding an
+  addition four bytes to the log file with this seek.
